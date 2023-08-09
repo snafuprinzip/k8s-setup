@@ -2,3 +2,4 @@
 files/pki
 kubernetes-cluster-setup.out
 kubernetes-vagrant-cluster-setup.out
+.idea
