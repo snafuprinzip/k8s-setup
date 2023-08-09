@@ -1,0 +1,126 @@
+---
+# tasks file for host_prepare
+
+- name: OS Pakete aktualisieren
+  dnf:
+    name: "*"
+    state: latest
+
+- name: Cri-o sysctl file kopieren
+  copy:
+    src: files/99-k8s-cri.conf
+    dest: /etc/sysctl.d/99-k8s-cri.conf
+    owner: root
+    group: root
+    force: no
+
+- name: netfilter config hinterlegen
+  copy:
+    src: files/k8s.conf
+    dest: /etc/modules-load.d/k8s.conf
+    owner: root
+    group: root
+    force: no
+
+- name: iptables legacy Pakete installieren
+  dnf:
+    name: iptables-legacy
+    state: present
+
+- name: iptables legacy als default festlegen
+  command:
+    cmd: alternatives --set iptables /usr/sbin/iptables-legacy
+
+- name: firewalld service deaktivieren
+  service:
+    name: firewalld
+    state: stopped
+    enabled: no
+  ignore_errors: true
+
+- name: Kernel Module laden
+  modprobe:
+    name: "{{ item }}"
+    state: present
+    persistent: present
+  with_items:
+    - br_netfilter
+    - bridge
+
+- name: Bridge Firewall Regeln und IP Forwarding aktivieren
+  shell: |
+    echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+
+- name: systemd DNS resolver service deaktivieren
+  service:
+    name: systemd-resolved
+    state: stopped
+    enabled: no
+
+- name: DNS Auflösung im Network Manager auf default stellen
+  lineinfile:
+    dest: /etc/NetworkManager/NetworkManager.conf
+    insertafter: "[main]"
+    line: "dns=default"
+
+- name: resolv.conf leeren
+  copy:
+    dest: /etc/resolv.conf
+    content: ''
+    force: true
+
+- name: NetworkManager neu starten
+  service:
+    name: NetworkManager
+    state: restarted
+
+- name: SELinux Modulquelle kopieren
+  copy:
+    src: files/k8s.te
+    dest: /tmp/k8s.te
+    force: no
+
+- name: SELinux Modul erzeugen und installieren
+  shell:
+    cmd: |
+      checkmodule -m -M -o /tmp/k8s.mod /tmp/k8s.te
+      semodule_package -o /root/k8s.pp --module /tmp/k8s.mod
+      semodule -i /root/k8s.pp
+    creates: /root/k8s.pp
+
+- name: Swap deaktivieren
+  shell:
+    cmd: |
+      swapoff -a
+      touch /etc/systemd/zram-generator.conf
+    creates: /etc/systemd/zram-generator.conf
+
+- name: Swap Einträge in /etc/fstab auskommentieren
+  replace:
+    path: /etc/fstab
+    regexp: '(.*swap*)'
+    replace: '#\1' # #-Symbol + die gefundene Zeile selbst \1
+
+- name: Notwendige Pakete installieren
+  dnf:
+    name: "{{ k8s_packages }}"
+    state: latest
+
+- name: Parameter fuer Cri-o in der systemd kubeadm.conf hinterlegen
+  lineinfile:
+    path: /etc/systemd/system/kubelet.service.d/kubeadm.conf
+    regexp: '^Environment="KUBELET_EXTRA_ARGS=(.*)$'
+    line: 'Environment="KUBELET_EXTRA_ARGS=--cgroup-driver=systemd --container-runtime=remote --container-runtime-endpoint=unix:///var/run/crio/crio.sock"'
+    backrefs: true # Datei wird nicht geändert, wenn regexp nicht gefunden wurde
+
+- name: cri-o enablen und starten
+  service:
+    name: crio
+    state: started
+    enabled: true
+
+- name: kubelet enablen
+  service:
+    name: kubelet
+    enabled: true

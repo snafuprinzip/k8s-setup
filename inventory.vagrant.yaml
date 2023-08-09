@@ -1,0 +1,40 @@
+---
+
+initial_controlplane:
+  hosts:
+    k8svgcp1:
+      ansible_host: 192.168.60.31
+  vars:
+    initial_controlplane: true
+
+additional_controlplanes:
+  hosts:
+    k8svgcp2:
+      ansible_host: 192.168.60.32
+  vars:
+    additional_controlplane: true
+
+controlplanes:
+  children:
+    initial_controlplane:
+    additional_controlplanes:
+
+nodes:
+  hosts:
+    k8svgnode1:
+      ansible_host: 192.168.60.33
+    k8svgnode2:
+      ansible_host: 192.168.60.34
+  vars:
+    node: true
+
+cluster:
+  children:
+    controlplanes:
+    nodes:
+  vars:
+    ansible_user: vagrant
+    cp_endpoint: 192.168.60.31
+    api_address: k8svgcp1
+    pod_cidr: 192.168.0.0/16
+    access_token_file: kubernetes-vagrant-cluster-setup.out

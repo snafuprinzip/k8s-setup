@@ -1,0 +1,24 @@
+---
+# tasks file for node_join
+
+- name: kubeadm init Konfiguration einlesen
+  set_fact:
+    join_config: "{{ lookup('file', access_token_file) }}" # liest die lokale Datei ein
+
+- name: Cluster Join Parameter extrahieren
+  set_fact:
+    join_address: "{{ join_config | regex_search('[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}:[0-9]{1,8}') }}"
+    join_token: "{{ join_config | regex_search('--token\\s(\\S+)\\s') }}"
+    join_ca_cert: "{{ join_config | regex_search('--discovery-token-ca-cert-hash\\s(\\S+)\\s') }}"
+
+- debug:
+    msg: "Executing: kubeadm join {{ join_address}} {{ join_token }} {{ join_ca_cert }}"
+
+- name: Worker Node zum Cluster hinzufügen
+  shell:
+    cmd: "kubeadm join {{ join_address}} {{ join_token }} {{ join_ca_cert }}"
+    creates: /etc/kubernetes/pki
+  register: node_join_output
+
+- debug:
+    msg: "{{ node_join_output.stdout_lines }} {{ node_join_output.stderr_lines }}"

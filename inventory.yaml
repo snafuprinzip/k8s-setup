@@ -1,0 +1,41 @@
+---
+
+initial_controlplane:
+  hosts:
+    k8s2cp1:
+      ansible_host: 172.31.255.31
+  vars:
+    initial_controlplane: true
+
+additional_controlplanes:
+  hosts:
+    k8s2cp2:
+      ansible_host: 172.31.255.32
+    k8s2cp3:
+      ansible_host: 172.31.255.33
+  vars:
+    additional_controlplane: true
+
+controlplanes:
+  children:
+    initial_controlplane:
+    additional_controlplanes:
+
+nodes:
+  hosts:
+    k8s2nd1:
+      ansible_host: 172.31.255.41
+    k8s2nd2:
+      ansible_host: 172.31.255.42
+    k8s2nd3:
+      ansible_host: 172.31.255.43
+  vars:
+    node: true
+
+cluster:
+  children:
+    controlplanes:
+    nodes:
+  vars:
+    ansible_user: root
+    ansible_ssh_common_args: '-o ProxyCommand="ssh -p 22 -W %h:%p -q mleimenmeier@host"'

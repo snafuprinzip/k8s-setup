@@ -1,0 +1,52 @@
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+    # General VM Configuration
+    config.vm.box = "fedora/38-cloud-base"
+    config.ssh.insert_key = false
+    config.vm.synced_folder ".", "vagrant", disabled: true
+    config.vm.provider :virtualbox do |v|
+        v.memory = 512
+        v.linked_clone = true
+    end
+
+    if Vagrant.has_plugin?("vagrant-timezone")
+       config.timezone.value = "UTC"
+    end
+
+    # Control Planes
+    config.vm.define "cp1" do |cp|
+        cp.vm.hostname = "k8svgcp1"
+        cp.vm.network :private_network, ip: "192.168.60.31"
+        cp.vm.provider :virtualbox do |vb|
+          vb.customize ["modifyvm", :id, "--memory", "2048"]
+          vb.customize ["modifyvm", :id, "--cpus", "2"]
+        end
+    end
+    config.vm.define "cp2" do |cp|
+        cp.vm.hostname = "k8svgcp2"
+        cp.vm.network :private_network, ip: "192.168.60.32"
+        cp.vm.provider :virtualbox do |vb|
+          vb.customize ["modifyvm", :id, "--memory", "2048"]
+          vb.customize ["modifyvm", :id, "--cpus", "2"]
+        end
+    end
+
+    # node
+    config.vm.define "node1" do |node|
+        node.vm.hostname = "k8svgnode1"
+        node.vm.network :private_network, ip: "192.168.60.33"
+        node.vm.provider :virtualbox do |vb|
+          vb.customize ["modifyvm", :id, "--memory", "2048"]
+          vb.customize ["modifyvm", :id, "--cpus", "2"]
+        end
+    end
+    config.vm.define "node2" do |node|
+        node.vm.hostname = "k8svgnode2"
+        node.vm.network :private_network, ip: "192.168.60.34"
+        node.vm.provider :virtualbox do |vb|
+          vb.customize ["modifyvm", :id, "--memory", "2048"]
+          vb.customize ["modifyvm", :id, "--cpus", "2"]
+        end
+    end
+end

@@ -1,0 +1,12 @@
+---
+k8s_packages:
+  - cri-o
+  - cri-tools
+  - ethtool
+  - iproute-tc
+  - container-selinux
+  - kubernetes-kubeadm
+  - kubernetes-client
+  - kubernetes-master
+  - kubernetes-node
+  - helm

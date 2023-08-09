@@ -1,0 +1,46 @@
+---
+- hosts: all
+  become: true # sudo notwendig für alle Tasks
+  remote_user: ansible
+  become_user: root
+
+  pre_tasks:
+    - name: Default Variablen abhängig von der Linux Distribution setzen
+      include_vars: "{{ item }}"
+      with_first_found:
+        - "vars/{{ ansible_distribution }}.yaml"
+        - "vars/distributiondefault.yaml"
+
+    #    - name: OS Info
+    #      ansible.builtin.debug:
+    #        msg: System ist ein {{ ansible_distribution }}/{{ ansible_os_family }} linux.
+
+    #    - name: Ausgabe aller gesammelten Facts
+    #      ansible.builtin.debug:
+    #        var: ansible_facts
+
+    - name: Distributionsabhängige Tasks ausführen
+      include_tasks: "{{ taskfile }}"
+      loop_control:
+        loop_var: taskfile
+      with_first_found:
+        - "tasks/{{ ansible_distribution }}.yaml"
+        - "tasks/distributiondefault.yaml"
+
+  roles:
+    - role: host_prepare
+      tags: host_prepare
+
+    - role: controlplane_setup
+      tags: controlplane_setup
+      when: initial_controlplane is true
+
+    - role: controlplane_join
+      tags: controlplane_join
+      when: additional_controlplane is true
+
+    - role: node_join
+      tags: node_join
+      when: node is true
+
+  tasks:

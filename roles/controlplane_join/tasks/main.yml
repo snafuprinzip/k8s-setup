@@ -1,0 +1,65 @@
+---
+# tasks file for controlplane_join
+
+- name: PKI Verzeichnisse erstellen
+  file:
+    path: "/etc/kubernetes/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+  with_items:
+    - pki
+    - pki/etcd
+
+- name: Kubernetes CA's auf die Controlplane kopieren
+  copy:
+    src: "../../files/pki/{{ item }}"
+    dest: /etc/kubernetes/pki/
+    owner: root
+    group: root
+  with_items:
+    - ca.crt
+    - ca.key
+    - sa.pub
+    - sa.key
+    - front-proxy-ca.crt
+    - front-proxy-ca.key
+
+- name: etcd CA's auf die Controlplane kopieren
+  copy:
+    src: "../../files/pki/etcd/{{ item }}"
+    dest: /etc/kubernetes/pki/etcd/
+    owner: root
+    group: root
+  with_items:
+    - ca.crt
+    - ca.key
+
+#- name: Zertifikatsverzeichnis auf die Controlplane kopieren
+#  synchronize:
+#    src: files/pki
+#    dest: /etc/kubernetes/
+#    mode: push
+
+- name: kubeadm init Konfiguration einlesen
+  set_fact:
+    join_config: "{{ lookup('file', access_token_file) }}" # liest die lokale Datei ein
+
+- name: Cluster Join Parameter extrahieren
+  set_fact:
+    join_address: "{{ join_config | regex_search('[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}:[0-9]{1,8}') }}"
+    join_token: "{{ join_config | regex_search('--token\\s(\\S+)\\s') }}"
+    join_ca_cert: "{{ join_config | regex_search('--discovery-token-ca-cert-hash\\s(\\S+)\\s') }}"
+
+- debug:
+    msg: "Executing: kubeadm join {{ join_address}} {{ join_token }} {{ join_ca_cert }} --control-plane"
+
+- name: Control Plane zum Cluster hinzufügen
+  shell:
+    cmd: "kubeadm join {{ join_address}} {{ join_token }} {{ join_ca_cert }} --control-plane"
+    creates: /etc/kubernetes/admin.conf
+  register: cp_join_output
+
+- debug:
+    msg: "{{ cp_join_output.stdout_lines }} {{ cp_join_output.stderr_lines }}"
+

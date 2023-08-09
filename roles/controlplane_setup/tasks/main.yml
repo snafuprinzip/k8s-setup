@@ -1,0 +1,56 @@
+---
+# tasks file for controlplane_setup
+
+- name: Pulling images required for setting up a Kubernetes cluster
+  command: kubeadm config images pull
+
+- name: Kubernetes Cluster auf initialer Controlplane einrichten
+#  shell: kubeadm init --control-plane-endpoint={{ cp_endpoint }} --apiserver-advertise-address {{ api_address }} --pod-network-cidr={{ pod_cidr }} --cri-socket=unix:///var/run/crio/crio.sock
+  shell:
+    cmd: kubeadm init --control-plane-endpoint={{ cp_endpoint }} --pod-network-cidr={{ pod_cidr }} --cri-socket=unix:///var/run/crio/crio.sock
+    creates: /etc/kubernetes/admin.conf
+  register: kubeadm_output
+
+- name: Ausgabe von kubeadm
+  debug:
+    msg: "{{ kubeadm_output.stdout_lines | regex_replace('[\\r\\n\\t]+',' ') }}"
+
+- name: Ausgabe sichern
+  local_action: copy content={{ kubeadm_output.stdout }} dest={{ access_token_file }} force=false
+  become: false
+
+- name: Clientconfig Verzeichnis erstellen
+  file:
+    path: "{{ ansible_env.HOME }}/.kube"
+    state: directory
+
+- name: Konfiguration fuer den Zugriff als Clientconfig sichern
+  shell:
+    cmd: |
+      cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+      chown $(id -u):$(id -g) $HOME/.kube/config
+    creates: "{{ ansible_env.HOME }}/.kube/config"
+
+- name: Calico CDN Netzwerk einrichten
+  command: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/master/manifests/calico.yaml
+  register: calico_output
+
+- name: Ausgabe Calico CDN Installation
+  debug:
+    msg: "{{ calico_output.stdout_lines }}"
+
+- name: Zertifikatsverzeichnis lokal sichern
+  synchronize:
+    src: /etc/kubernetes/pki/*
+    dest: files/pki/
+    mode: pull
+#    recursive: false
+
+#- name: etcd Server Zertifikate aus Sicherung wieder entfernen
+#  local_action:
+#    module: file
+#    path: "files/pki/etcd/{{ item }}"
+#    state: absent
+#  with_items:
+#  - server.crt
+#  - server.key

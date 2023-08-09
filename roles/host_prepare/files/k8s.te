@@ -1,0 +1,11 @@
+# create new
+module k8s 1.0;
+
+require {
+        type cgroup_t;
+        type iptables_t;
+        class dir ioctl;
+}
+
+#============= iptables_t ==============
+allow iptables_t cgroup_t:dir ioctl;

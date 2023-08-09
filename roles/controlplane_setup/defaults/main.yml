@@ -1,0 +1,7 @@
+---
+# defaults file for controlplane_setup
+
+cp_endpoint: 172.31.255.31
+api_address: k8s2cp1.snafuprinzip.com
+pod_cidr: 192.168.0.0/16
+access_token_file: kubernetes-cluster-setup.out
